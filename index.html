@@ -1,1 +1,206 @@
-aiueo
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>パックマン風（強化版）</title>
+<style>
+body{
+    background:black;
+    color:white;
+    text-align:center;
+    font-family:sans-serif;
+}
+
+canvas{
+    background:#111;
+    margin-top:20px;
+    border:2px solid white;
+}
+</style>
+</head>
+
+<body>
+
+<h1>👾 パックマン風ゲーム（強化版）</h1>
+<p>矢印キーで移動！</p>
+<p>スコア: <span id="score">0</span></p>
+
+<canvas id="game" width="400" height="400"></canvas>
+
+<script>
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const tileSize = 20;
+const rows = 20;
+const cols = 20;
+
+let score = 0;
+
+// マップ生成
+let map = [];
+for(let y=0;y<rows;y++){
+    map[y] = [];
+    for(let x=0;x<cols;x++){
+        if(y===0 || y===rows-1 || x===0 || x===cols-1){
+            map[y][x] = 1;
+        }else{
+            map[y][x] = 2;
+        }
+    }
+}
+
+// ワープトンネル（左右中央）
+map[10][0] = 0;
+map[10][cols-1] = 0;
+
+// プレイヤー
+let player = {
+    x:1,
+    y:1,
+    dx:0,
+    dy:0,
+    mouth:0
+};
+
+// ゴースト
+let ghost = {
+    x:10,
+    y:10
+};
+
+document.addEventListener("keydown",e=>{
+    if(e.key==="ArrowUp"){player.dx=0;player.dy=-1;}
+    if(e.key==="ArrowDown"){player.dx=0;player.dy=1;}
+    if(e.key==="ArrowLeft"){player.dx=-1;player.dy=0;}
+    if(e.key==="ArrowRight"){player.dx=1;player.dy=0;}
+});
+
+// プレイヤー更新
+function updatePlayer(){
+
+    let nx = player.x + player.dx;
+    let ny = player.y + player.dy;
+
+    // ワープ
+    if(nx < 0){ player.x = cols-1; return; }
+    if(nx >= cols){ player.x = 0; return; }
+
+    if(map[ny][nx] !== 1){
+        player.x = nx;
+        player.y = ny;
+    }
+
+    // ドット取得
+    if(map[player.y][player.x] === 2){
+        map[player.y][player.x] = 0;
+        score++;
+        document.getElementById("score").textContent = score;
+    }
+
+    // 口パク
+    player.mouth += 0.2;
+}
+
+// ゴーストAI（プレイヤー追尾）
+function updateGhost(){
+
+    let bestMove = {dx:0,dy:0};
+    let bestDist = Infinity;
+
+    let dirs = [
+        {dx:0,dy:1},
+        {dx:0,dy:-1},
+        {dx:1,dy:0},
+        {dx:-1,dy:0}
+    ];
+
+    for(let d of dirs){
+        let nx = ghost.x + d.dx;
+        let ny = ghost.y + d.dy;
+
+        if(map[ny][nx] === 1) continue;
+
+        let dist = Math.abs(player.x - nx) + Math.abs(player.y - ny);
+
+        if(dist < bestDist){
+            bestDist = dist;
+            bestMove = d;
+        }
+    }
+
+    ghost.x += bestMove.dx;
+    ghost.y += bestMove.dy;
+}
+
+// 衝突判定
+function checkCollision(){
+    if(player.x === ghost.x && player.y === ghost.y){
+        alert("ゲームオーバー！");
+        location.reload();
+    }
+}
+
+// 描画
+function draw(){
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    for(let y=0;y<rows;y++){
+        for(let x=0;x<cols;x++){
+
+            if(map[y][x] === 1){
+                ctx.fillStyle = "blue";
+                ctx.fillRect(x*tileSize,y*tileSize,tileSize,tileSize);
+            }
+
+            if(map[y][x] === 2){
+                ctx.fillStyle = "white";
+                ctx.beginPath();
+                ctx.arc(x*tileSize+10,y*tileSize+10,3,0,Math.PI*2);
+                ctx.fill();
+            }
+        }
+    }
+
+    // パックマン（口パク）
+    ctx.fillStyle = "yellow";
+    let angle = Math.abs(Math.sin(player.mouth)) * 0.5;
+
+    let dirAngle = 0;
+    if(player.dx === 1) dirAngle = 0;
+    if(player.dx === -1) dirAngle = Math.PI;
+    if(player.dy === -1) dirAngle = -Math.PI/2;
+    if(player.dy === 1) dirAngle = Math.PI/2;
+
+    ctx.beginPath();
+    ctx.moveTo(player.x*tileSize+10,player.y*tileSize+10);
+    ctx.arc(
+        player.x*tileSize+10,
+        player.y*tileSize+10,
+        8,
+        dirAngle + angle,
+        dirAngle + (Math.PI*2 - angle)
+    );
+    ctx.fill();
+
+    // ゴースト
+    ctx.fillStyle = "red";
+    ctx.fillRect(ghost.x*tileSize+4,ghost.y*tileSize+4,12,12);
+}
+
+// ループ
+function loop(){
+    updatePlayer();
+    updateGhost();
+    checkCollision();
+    draw();
+}
+
+setInterval(loop,120);
+
+</script>
+
+</body>
+</html>
